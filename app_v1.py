@@ -58,14 +58,18 @@ def main():
                     if recognize_faces(frame, landmarks_from_id_card, known_face_encodings)[0]:
                         with lock:
                             output_queue.put([known_image,frame])
-                        break
+            if face_boxes is not None:
+                with lock:
+                    output_queue.put([0,frame])
+
             with lock:
                 output_queue.put(None)
 
     # Setup Streamlit
     st.title("Real-time Face Recognition")
     notification_container = st.empty()
-    camera1, camera2 = cv2.VideoCapture(1), cv2.VideoCapture(0)
+    progress_bar = st.progress(0)
+    camera1, camera2 = cv2.VideoCapture(1), cv2.VideoCapture(1)
     col1, col2 = st.columns([4, 2])
     frame_display1, frame_display2 = col1.empty(), col2.empty()
     next_button = st.button("Next")
@@ -85,6 +89,9 @@ def main():
     font_scale = 1
     font_thickness = 2
     text_color = (0, 255, 0)
+    duration = 1
+    steps = 100
+    sleep_duration = duration / steps
 
     # while camera1.isOpened() and camera2.isOpened():
     while True:
@@ -115,11 +122,23 @@ def main():
                 if not output_queue2.empty():
                     out_put_2 = output_queue2.get()
                     if out_put_2 is not None:
-                        known_image, frame2 = out_put_2[0],out_put_2[1]
-                        is_face_recognized = True
-                        next_button = False
-                        frame1 = known_image
+                        notification_container.warning("Đang xác thực hành khách ")
 
+                        output_queue2.queue.clear()
+                        known_image, frame2 = out_put_2[0],out_put_2[1]
+                        if not isinstance(known_image, int):
+                            is_face_recognized = True
+                            next_button = False
+                            frame1 = known_image
+                            notification_container.success("Xác thực thành công ")
+                            # for i in range(3,0,-1):
+                            #     time.sleep(0.7)
+                            #     notification_container.success("Xác thực thành công "  + str(i))
+                            #     next_button = True
+                        else:
+                            notification_container.error("Xác thực khong thành công!")
+                    else:
+                        notification_container.empty()
         fps_value = frame_count / (time.time() - start_time)
         cv2.putText(frame1, f'FPS: {fps_value:.2f}', (10, 30), font, font_scale, text_color, font_thickness)
         frame_count += 1
